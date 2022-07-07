@@ -109,17 +109,23 @@ class CustomLoss(torch.nn.Module):
     return loss
 
 class ToPatches:
-  def __init__(self, size):
+  def __init__(self, size, padding=(0, 0), mode="constant"):
     self.size = size
+    self.padding = padding
+    self.mode = mode
 
   def __call__(self, imgs: torch.Tensor) -> torch.Tensor:
+    imgs_pad = torch.nn.functional.pad(imgs, self.padding, self.mode)
+    xp = self.padding[0]
+    yp = self.padding[1]
     for b in range(imgs.size(0)):
       for x in range(0, imgs.size(2), self.size[0]):
         for y in range(0, imgs.size(3), self.size[1]):
+          t = imgs_pad[b,:,x-xp:x+xp+self.size[0],y-yp:y+yp+self.size[1]].unsqueeze(0)
           if b == 0 and x == 0 and y == 0:
-            out = imgs[b,:,x:x+self.size[0],y:y+self.size[1]].unsqueeze(0)
+            out = t
           else:
-            out = torch.cat((out, imgs[b,:,x:x+self.size[0],y:y+self.size[1]].unsqueeze(0)), 0)
+            out = torch.cat((out, t), 0)
     return out
     
 if __name__ == "__main__":
