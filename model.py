@@ -28,37 +28,36 @@ class RankSR(torch.nn.Module):
 
   def forward(self, x, is_train=True):
     if is_train:
-      rank = self.downsample(x)
-      rank = self.ranking(rank)
+      rank = self.ranking(x)
       with torch.no_grad():
         output1 = self.net1(x).detach()
         output2 = self.net2(x).detach()
       return rank, output1, output2
     else:
-      rank = self.downsample(x)
-      rank = self.ranking(rank)
+      rank = self.ranking(x)
       return rank
 
 class Ranking(torch.nn.Module):
   def __init__(self, device="cpu"):
     super(Ranking, self).__init__()
+    self.downsample = torch.nn.Upsample(size=(20,20))
     self.conv2d_1 = torch.nn.Sequential(
-      torch.nn.Conv2d(1,32,3,padding=3//2),
+      torch.nn.Conv2d(1,8,3,padding=3//2),
       torch.nn.Tanh(),
-      torch.nn.Conv2d(32,32,3,padding=3//2),
+      torch.nn.Conv2d(8,8,3,padding=3//2),
       torch.nn.Tanh(),
       torch.nn.MaxPool2d(2, stride=2)
     )
     self.conv2d_2 = torch.nn.Sequential(
-      torch.nn.Conv2d(32,16,1,padding=0),
+      torch.nn.Conv2d(8,4,1,padding=0),
       torch.nn.Tanh(),
-      torch.nn.Conv2d(16,8,1,padding=0),
+      torch.nn.Conv2d(4,4,1,padding=0),
       torch.nn.Tanh(),
       torch.nn.MaxPool2d(2, stride=2)
     )
     self.dense = torch.nn.Sequential(
       torch.nn.Flatten(),
-      torch.nn.Linear(200, 1),
+      torch.nn.Linear(100, 1),
       torch.nn.Tanhshrink()
     )
     self._initialize_weights()
@@ -78,6 +77,7 @@ class Ranking(torch.nn.Module):
         torch.nn.init.zeros_(m.bias.data)
 
   def forward(self, x):
+    x = self.downsample(x)
     x = self.conv2d_1(x)
     x = self.conv2d_2(x)
     x = self.dense(x)
@@ -109,19 +109,19 @@ class CustomLoss(torch.nn.Module):
     return loss
 
 class ToPatches:
-  def __init__(self, size, padding=(0, 0), mode="constant"):
+  def __init__(self, size, padding=(0, 0, 0, 0), mode="constant"):
     self.size = size
     self.padding = padding
     self.mode = mode
 
   def __call__(self, imgs: torch.Tensor) -> torch.Tensor:
     imgs_pad = torch.nn.functional.pad(imgs, self.padding, self.mode)
-    xp = self.padding[0]
-    yp = self.padding[1]
+    xp = self.padding[2]+self.padding[3]
+    yp = self.padding[0]+self.padding[1]
     for b in range(imgs.size(0)):
       for x in range(0, imgs.size(2), self.size[0]):
         for y in range(0, imgs.size(3), self.size[1]):
-          t = imgs_pad[b,:,x-xp:x+xp+self.size[0],y-yp:y+yp+self.size[1]].unsqueeze(0)
+          t = imgs_pad[b,:,x:x+xp+self.size[0],y:y+yp+self.size[1]].unsqueeze(0)
           if b == 0 and x == 0 and y == 0:
             out = t
           else:

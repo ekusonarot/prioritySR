@@ -23,8 +23,8 @@ if __name__ == "__main__":
   criterion = CustomLoss(device=device)
   optimizer = optim.Adam([
     {"params" : model.ranking.conv2d_1.parameters()},
-    {"params" : model.ranking.conv2d_2.parameters(), "lr" : lr*0.1},
-    {"params" : model.ranking.dense.parameters(), "lr" : lr*0.01}
+    {"params" : model.ranking.conv2d_2.parameters()},
+    {"params" : model.ranking.dense.parameters(), "lr" : lr*0.1}
     ], lr=lr)
   
   transform = torchvision.transforms.Compose([
@@ -45,8 +45,8 @@ if __name__ == "__main__":
   
   print('Training set has {} instances'.format(len(train_set)))
   print('Validation set has {} instances'.format(len(valid_set)))
-  toPatchesX = ToPatches((720//scale_factor//9, 1280//scale_factor//16))
-  toPatchesY = ToPatches((720//9, 1280//16))
+  toPatchesX = ToPatches((720//scale_factor//9, 1280//scale_factor//16), padding=(3, 3, 3, 3))
+  toPatchesY = ToPatches((720//9, 1280//16), padding=(12, 12, 12, 12))
   for e in range(epoch):
     total_loss = 0.
     for s, data in enumerate(train_loader):

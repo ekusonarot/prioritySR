@@ -13,9 +13,12 @@ from utils import ConvertYcbcr2Bgr, ConvertBgr2Ycbcr, Resize
 
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
     model = Ranking(device=device).to(device)
-    model.load_state_dict(torch.load("weights/ranking_epoch28_loss0.32995447143912315.pth", map_location=device))
+    model.load_state_dict(torch.load("weights/ranking_epoch8_loss0.3732032775878906.pth", map_location=device))
     model.eval()
+    for i in model.parameters():
+      i.requires_grad=False
 
     transform = torchvision.transforms.Compose([
         torchvision.transforms.CenterCrop([720,1280]),
@@ -26,13 +29,12 @@ if __name__ == "__main__":
     img = Image.open("DIV2K_valid_HR/0890.png")
     input_tensor = transform(img)
     input_tensor = input_tensor.to(torch.float32).to(device)
-    input_tensor = ToPatches((20, 20))(input_tensor[0,:,:].unsqueeze(0).unsqueeze(0))
+    input_tensor = ToPatches((20, 20), padding=(2,2,2,2))(input_tensor[0,:,:].unsqueeze(0).unsqueeze(0))
 
-    input_tensor = torch.nn.Upsample(size=(20,20))(input_tensor)
     start = time.perf_counter()
     rank = model(input_tensor)
     print("{}\n".format(time.perf_counter()-start))
-    indices = torch.argsort(rank, dim=0, descending=True).squeeze(1)
+    indices = torch.argsort(rank, dim=0, descending=False).squeeze(1)
 
     test_img = torchvision.transforms.CenterCrop([720,1280])(img)
     np_img = np.array(test_img)
@@ -41,13 +43,13 @@ if __name__ == "__main__":
         idx = int(idx)
         x = idx // 16
         y = idx % 16
-        out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/(i/30+1)
-        '''
+        #out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/(i/30+1)
+        #'''
         if i < 70:
             out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]
         else:
             out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/2
-        '''
+        #'''
     image = Image.fromarray(np.uint8(out_img))
     image.save('cnn.png')
 
@@ -67,12 +69,12 @@ if __name__ == "__main__":
         idx = int(idx)
         x = idx // 16
         y = idx % 16
-        out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/(i/30+1)
-        '''
+        #out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/(i/30+1)
+        #'''
         if i < 70:
             out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]
         else:
             out_img[x*80:x*80+80,y*80:y*80+80,:] = np_img[x*80:x*80+80,y*80:y*80+80,:]/2
-        '''
+        #'''
     image = Image.fromarray(np.uint8(out_img))
     image.save('corner.png')
