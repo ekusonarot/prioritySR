@@ -30,6 +30,11 @@ if __name__ == "__main__":
   transform = torchvision.transforms.Compose([
     torchvision.transforms.CenterCrop([720,1280]),
     Resize(1./scale_factor, 1./scale_factor),
+    torchvision.transforms.ToTensor()
+  ])
+  transform_ycbcr = torchvision.transforms.Compose([
+    torchvision.transforms.CenterCrop([720,1280]),
+    Resize(1./scale_factor, 1./scale_factor),
     ConvertBgr2Y(),
     torchvision.transforms.ToTensor()
   ])
@@ -38,9 +43,9 @@ if __name__ == "__main__":
     ConvertBgr2Y(),
     torchvision.transforms.ToTensor()
   ])
-  train_set = ImgDataset("DIV2K_train_HR", "DIV2K_train_HR", transform, target_transform)
+  train_set = ImgDataset("DIV2K_train_HR", "DIV2K_train_HR", "DIV2K_train_HR", transform, transform_ycbcr, target_transform)
   train_loader = DataLoader(train_set, batch_size = batch_size, shuffle = True)
-  valid_set = ImgDataset("DIV2K_valid_HR", "DIV2K_valid_HR", transform, target_transform)
+  valid_set = ImgDataset("DIV2K_valid_HR", "DIV2K_valid_HR", "DIV2K_valid_HR", transform, transform_ycbcr, target_transform)
   valid_loader = DataLoader(valid_set, batch_size = batch_size, shuffle = False)
   
   print('Training set has {} instances'.format(len(train_set)))
@@ -50,14 +55,13 @@ if __name__ == "__main__":
   for e in range(epoch):
     total_loss = 0.
     for s, data in enumerate(train_loader):
-      x_image, y_image = data
-      x_image = x_image.to(device, dtype=torch.float)
-      y_image = y_image.to(device, dtype=torch.float)
-      x_image = toPatchesX(x_image)
-      y_image = toPatchesY(y_image)
+      x_image, x_ycbcr, y_image = data
+      x_image = toPatchesX(x_image).to(device, dtype=torch.float)
+      x_ycbcr = toPatchesX(x_ycbcr).to(device, dtype=torch.float)
+      y_image = toPatchesY(y_image).to(device, dtype=torch.float)
       optimizer.zero_grad()
 
-      rank, fsrcnn, bicubic = model(x_image, is_train=True)
+      rank, fsrcnn, bicubic = model(x_image, ycbcr=x_ycbcr)
       loss = criterion(rank, fsrcnn, bicubic, y_image)
       loss.backward()
 
@@ -70,12 +74,11 @@ if __name__ == "__main__":
     print("\n[train] total loss {}\n".format(total_loss))
     total_loss = 0.
     for s, data in enumerate(valid_loader):
-      x_image, y_image = data
-      x_image = x_image.to(device, dtype=torch.float)
-      y_image = y_image.to(device, dtype=torch.float)
-      x_image = toPatchesX(x_image)
-      y_image = toPatchesY(y_image)
-      rank, fsrcnn, bicubic = model(x_image, is_train=True)
+      x_image, x_ycbcr, y_image = data
+      x_image = toPatchesX(x_image).to(device, dtype=torch.float)
+      x_ycbcr = toPatchesX(x_ycbcr).to(device, dtype=torch.float)
+      y_image = toPatchesY(y_image).to(device, dtype=torch.float)
+      rank, fsrcnn, bicubic = model(x_image, ycbcr=x_ycbcr)
 
       loss = criterion(rank, fsrcnn, bicubic, y_image)
 
